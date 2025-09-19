@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>연세대학교 빈 강의실 찾기</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>연세대학교 빈 강의실 찾기</h1>
+            <p>원하는 시간대에 사용 가능한 강의실을 찾아보세요</p>
+        </header>
+
+        <form id="roomFinderForm" class="search-form">
+            <div class="form-group">
+                <label for="date">날짜:</label>
+                <input type="date" id="date" name="date" required>
+            </div>
+
+            <div class="form-group">
+                <label for="startTime">시작 시간:</label>
+                <input type="time" id="startTime" name="startTime" required>
+            </div>
+
+            <div class="form-group">
+                <label for="endTime">종료 시간:</label>
+                <input type="time" id="endTime" name="endTime" required>
+            </div>
+
+            <div class="form-group">
+                <label for="uBuilding">건물:</label>
+                <select name="uBuilding" id="uBuilding" required>
+                    <option value="113" selected="">GS칼텍스산학협력관</option>
+                    <option value="998">LearnUs 오픈스튜디오</option>
+                    <option value="212">경영관</option>
+                    <option value="208">과학관</option>
+                    <option value="111">과학원</option>
+                    <option value="204">광복관</option>
+                    <option value="205">광복관 별관</option>
+                    <option value="312">교육과학관</option>
+                    <option value="800">김대중도서관</option>
+                    <option value="617">대강당</option>
+                    <option value="308">대우관 별관</option>
+                    <option value="307">대우관 본관</option>
+                    <option value="117">대운동장</option>
+                    <option value="203">백양관</option>
+                    <option value="130">백양누리</option>
+                    <option value="309">빌링슬리관</option>
+                    <option value="207">삼성관</option>
+                    <option value="611">상남경영관</option>
+                    <option value="707">새천년관</option>
+                    <option value="305">성암관</option>
+                    <option value="110">스포츠과학관</option>
+                    <option value="303">아펜젤러관</option>
+                    <option value="118">야구장</option>
+                    <option value="301">언더우드관</option>
+                    <option value="701">언어연구교육원</option>
+                    <option value="202">연세·삼성 학술정보관</option>
+                    <option value="306">연희관</option>
+                    <option value="313">외솔관</option>
+                    <option value="314">외솔관2</option>
+                    <option value="315">원두우 신학관</option>
+                    <option value="311">위당관</option>
+                    <option value="310">유억겸기념관</option>
+                    <option value="702">이윤재관</option>
+                    <option value="102">제1공학관</option>
+                    <option value="103">제2공학관</option>
+                    <option value="105">제3공학관</option>
+                    <option value="124">제4공학관</option>
+                    <option value="112">첨단과학기술연구관</option>
+                    <option value="108">체육관</option>
+                    <option value="109">체육교육관</option>
+                    <option value="618">학생회관</option>
+                </select>
+            </div>
+
+            <button type="submit" class="search-btn">빈 강의실 찾기</button>
+        </form>
+
+        <div id="loading" class="loading" style="display: none;">
+            검색 중...
+        </div>
+
+        <div id="results" class="results">
+            <h2>검색 결과</h2>
+            <div id="roomList" class="room-list">
+                <p class="no-results">검색 조건을 입력하고 '빈 강의실 찾기' 버튼을 클릭하세요.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

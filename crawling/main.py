@@ -312,8 +312,7 @@ def main():
                     continue
                 
                 for j, (r_uid, r_name) in enumerate(rooms):
-                    if j == 0 or (j+1) % 10 == 0:  # 진행상황 출력
-                        print(f"    📍 [{j+1}/{len(rooms)}] {r_name}")
+                    print(f"    📍 [{j+1}/{len(rooms)}] {r_name}")
                     
                     for w in range(WEEKS):
                         week_start = base_week_start + timedelta(days=7*w)

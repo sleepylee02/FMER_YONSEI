@@ -1,0 +1,50 @@
+# .gitignore for Python Projects
+## --- Virtual Environments ---
+.venv/
+venv/
+env/
+.env
+
+## --- Python Cache & Compiled Files ---
+pycache/
+*.pyc
+*.pyo
+*.pyd
+
+## --- Build, Distribution, and Packaging ---
+build/
+dist/
+sdist/
+*.egg-info/
+*.egg
+wheels/
+*.whl
+
+## --- IDE & Editor Configuration ---
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+## --- Testing & Coverage ---
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+nosetests.xml
+
+## --- Operating System Files ---
+.DS_Store
+Thumbs.db
+
+## --- Environment Variables ---
+.env
+.env.*
+!.env.example
+
+## --- Logs ---
+*.log
+logs/
+
+## --- Jupyter Notebook ---
+.ipynb_checkpoints/

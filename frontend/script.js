@@ -40,7 +40,7 @@ class RoomFinder {
             console.log(`Loaded building data for ${Object.keys(this.buildingRooms).length} buildings`);
 
             // Load schedule data
-            const scheduleResponse = await fetch('../data/2025-09-15_weeks1.jsonl');
+            const scheduleResponse = await fetch('../data/schedule.jsonl');
             const text = await scheduleResponse.text();
 
             this.data = text.trim().split('\n')

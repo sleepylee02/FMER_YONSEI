@@ -1,0 +1,72 @@
+name: Auto Crawl Schedule Data
+
+on:
+  schedule:
+    # Run every Monday at 1:00 AM KST (16:00 UTC Sunday)
+    - cron: '0 16 * * 0'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  crawl-and-update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          cd crawling
+          pip install -r requirements.txt
+
+      - name: Run crawler
+        env:
+          YONSEI_ID: ${{ secrets.YONSEI_ID }}
+          YONSEI_PW: ${{ secrets.YONSEI_PW }}
+          BASE_URL: "https://space.yonsei.ac.kr"
+          YONSEI_GOPT: "A"
+          CAMPUS_LIST: "SC"
+          WEEKS: "1"
+        run: |
+          cd crawling
+          python main.py
+
+      - name: Configure Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Check for changes
+        id: check_changes
+        run: |
+          git add frontend/data/schedule.jsonl
+          if git diff --staged --quiet; then
+            echo "No changes detected"
+            echo "changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "Changes detected"
+            echo "changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push changes
+        if: steps.check_changes.outputs.changes == 'true'
+        run: |
+          git commit -m "🤖 Auto-update schedule data - $(date '+%Y-%m-%d %H:%M KST')
+
+          🕐 Scheduled crawl completed
+          📅 Updated weekly schedule data"
+          git push
+
+      - name: Deploy trigger
+        if: steps.check_changes.outputs.changes == 'true'
+        run: |
+          echo "✅ Data updated and committed. GitHub Pages will auto-deploy the changes."

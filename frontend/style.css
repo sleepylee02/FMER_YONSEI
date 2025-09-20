@@ -235,7 +235,7 @@ header p {
 .modal-content {
     background: white;
     border-radius: 10px;
-    max-width: 600px;
+    max-width: 900px;
     width: 90%;
     max-height: 80vh;
     overflow-y: auto;
@@ -276,6 +276,54 @@ header p {
 
 .modal-body {
     padding: 20px;
+}
+
+.weekly-schedule {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+}
+
+.day-column {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    min-height: 180px;
+    overflow: hidden;
+}
+
+.day-header {
+    background: #eff6ff;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 14px 16px;
+}
+
+.day-name {
+    display: block;
+    font-weight: 700;
+    color: #1e3a8a;
+    margin-bottom: 4px;
+}
+
+.day-date {
+    color: #475569;
+    font-size: 0.9em;
+}
+
+.day-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+}
+
+.day-empty {
+    text-align: center;
+    color: #94a3b8;
+    font-style: italic;
 }
 
 .schedule-list {
@@ -357,5 +405,14 @@ header p {
 
     .modal-body {
         padding: 15px;
+    }
+
+    .weekly-schedule {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .day-body {
+        padding: 14px;
     }
 }

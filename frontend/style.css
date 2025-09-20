@@ -141,9 +141,6 @@ header p {
     cursor: pointer;
 }
 
-.room-item.clickable * {
-    pointer-events: none;
-}
 
 .room-item.clickable:hover {
     border-color: #1e3a8a;

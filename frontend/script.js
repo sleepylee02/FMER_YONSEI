@@ -170,7 +170,8 @@ class RoomFinder {
         let html = `
             <div class="building-info">
                 <strong>${buildingName}</strong> - ${searchParams.date} ${searchParams.startTime} ~ ${searchParams.endTime}<br>
-                전체 강의실 ${totalCount}개 중 사용 가능한 강의실 ${availableCount}개
+                전체 강의실 ${totalCount}개 중 사용 가능한 강의실 ${availableCount}개<br>
+                <small style="color: #666;">📅 강의실을 클릭하면 주간 일정을 확인할 수 있습니다</small>
             </div>
         `;
 
@@ -186,9 +187,6 @@ class RoomFinder {
                         <span class="availability-status ${statusClass}">${statusText}</span>
                     </div>
                     ${this.getRoomDetails(room)}
-                    <div class="click-hint">
-                        <small style="color: #888;">📅 클릭하면 주간 일정을 확인할 수 있습니다</small>
-                    </div>
                 </div>
             `;
         });

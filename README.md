@@ -11,7 +11,7 @@
 
 ## 🚀 데모
 
-[GitHub Pages에서 확인하기](https://sleepylee02.github.io/FMER_YONSEI/)
+[GitHub Pages에서 확인하기](https://sleepylee02.github.io/FMER_YONSEI/frontend/)
 
 ## 📱 사용 방법
 

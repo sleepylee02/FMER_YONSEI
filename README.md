@@ -29,6 +29,7 @@ Logic used to filter the room was to find the occupied room from the crawled dat
 Nothing special but simple automization on uploading github io page and auto crawling every monday 1am kst.
 
 ## Project Structure
+```
 .
 ├── crawling
 │   ├── main.py
@@ -41,6 +42,7 @@ Nothing special but simple automization on uploading github io page and auto cra
 │   ├── script.js
 │   └── style.css
 └── README.md
+```
 
 ## TO reproduce
 use .env for local crawling

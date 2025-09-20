@@ -215,6 +215,7 @@ class RoomFinder {
         nameElement.className = 'room-name';
         nameElement.textContent = room.room_name;
 
+
         const status = document.createElement('span');
         status.className = `availability-status ${room.available ? 'available' : 'occupied'}`;
         status.textContent = room.available ? '사용 가능' : '사용 중';
@@ -333,7 +334,11 @@ class RoomFinder {
 
         console.log(`Clicked room: ${roomName}, Building: ${buildingId}, Date: ${date}`);
         this.showWeeklySchedule(roomName, buildingId, date);
+
     }
+    
+    showWeeklySchedule(roomName, buildingId, selectedDate) {
+        console.log(`Showing weekly schedule for: ${roomName}, ${buildingId}, week of ${selectedDate}`);
 
     flashRoomCard(card) {
         if (this.roomFlashTimers.has(card)) {

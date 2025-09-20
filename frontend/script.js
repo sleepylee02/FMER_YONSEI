@@ -13,15 +13,11 @@ class RoomFinder {
 
     setDefaultDateTime() {
         const now = new Date();
-        const today = now.toISOString().split('T')[0];
-
-        const currentTime = now.toTimeString().split(' ')[0].substring(0, 5);
         const nextHour = new Date(now.getTime() + 60 * 60 * 1000);
-        const nextHourTime = nextHour.toTimeString().split(' ')[0].substring(0, 5);
 
-        document.getElementById('date').value = today;
-        document.getElementById('startTime').value = currentTime;
-        document.getElementById('endTime').value = nextHourTime;
+        document.getElementById('date').value = now.toISOString().split('T')[0];
+        document.getElementById('startTime').value = now.toTimeString().substring(0, 5);
+        document.getElementById('endTime').value = nextHour.toTimeString().substring(0, 5);
     }
 
     bindEvents() {
@@ -34,20 +30,16 @@ class RoomFinder {
 
     async loadData() {
         try {
-            // Load building rooms data
-            const buildingResponse = await fetch('./data/building.json');
+            const [buildingResponse, scheduleResponse] = await Promise.all([
+                fetch('./data/building.json'),
+                fetch('./data/schedule.jsonl')
+            ]);
+
             this.buildingRooms = await buildingResponse.json();
-            console.log(`Loaded building data for ${Object.keys(this.buildingRooms).length} buildings`);
-
-            // Load schedule data
-            const scheduleResponse = await fetch('./data/schedule.jsonl');
             const text = await scheduleResponse.text();
-
             this.data = text.trim().split('\n')
                 .filter(line => line.trim())
                 .map(line => JSON.parse(line));
-
-            console.log(`Loaded ${this.data.length} schedule records`);
         } catch (error) {
             console.error('Error loading data:', error);
             this.showError('데이터를 불러오는 중 오류가 발생했습니다.');
@@ -151,8 +143,7 @@ class RoomFinder {
 
     displayResults(rooms, searchParams) {
         const resultsContainer = document.getElementById('roomList');
-        const buildingSelect = document.getElementById('uBuilding');
-        const buildingName = buildingSelect.options[buildingSelect.selectedIndex].text;
+        const buildingName = document.getElementById('uBuilding').selectedOptions[0].text;
 
         if (rooms.length === 0) {
             resultsContainer.innerHTML = `
@@ -165,22 +156,20 @@ class RoomFinder {
         }
 
         const availableCount = rooms.filter(room => room.available).length;
-        const totalCount = rooms.length;
-
-        let html = `
+        const buildingInfo = `
             <div class="building-info">
                 <strong>${buildingName}</strong> - ${searchParams.date} ${searchParams.startTime} ~ ${searchParams.endTime}<br>
-                전체 강의실 ${totalCount}개 중 사용 가능한 강의실 ${availableCount}개<br>
+                전체 강의실 ${rooms.length}개 중 사용 가능한 강의실 ${availableCount}개<br>
                 <small style="color: #666;">📅 강의실을 클릭하면 주간 일정을 확인할 수 있습니다</small>
             </div>
         `;
 
-        rooms.forEach(room => {
+        const roomsHTML = rooms.map(room => {
             const statusClass = room.available ? 'available' : 'occupied';
             const statusText = room.available ? '사용 가능' : '사용 중';
-
             const roomNameEncoded = encodeURIComponent(room.room_name);
-            html += `
+
+            return `
                 <div class="room-item clickable" data-room-name="${roomNameEncoded}" data-building-id="${room.building_id}" data-date="${searchParams.date}">
                     <div class="room-header">
                         <h3 class="room-name">${room.room_name}</h3>
@@ -189,11 +178,9 @@ class RoomFinder {
                     ${this.getRoomDetails(room)}
                 </div>
             `;
-        });
+        }).join('');
 
-        resultsContainer.innerHTML = html;
-
-        // Add click handlers to room items
+        resultsContainer.innerHTML = buildingInfo + roomsHTML;
         this.addRoomClickHandlers();
     }
 
@@ -225,45 +212,23 @@ class RoomFinder {
     }
 
     addRoomClickHandlers() {
-        const roomItems = document.querySelectorAll('.room-item.clickable');
-        console.log(`Adding click handlers to ${roomItems.length} room items`);
-        roomItems.forEach(item => {
+        document.querySelectorAll('.room-item.clickable').forEach(item => {
             item.addEventListener('click', () => {
-                // Visual feedback
                 item.style.backgroundColor = '#e0f2fe';
-                setTimeout(() => {
-                    item.style.backgroundColor = '';
-                }, 200);
+                setTimeout(() => item.style.backgroundColor = '', 200);
 
-                const roomNameAttr = item.dataset.roomName;
-                const buildingId = item.dataset.buildingId;
-                const date = item.dataset.date;
+                const { roomName: roomNameAttr, buildingId, date } = item.dataset;
+                if (!roomNameAttr || !buildingId || !date) return;
 
-                if (!roomNameAttr || !buildingId || !date) {
-                    console.warn('Missing data attributes for room item', { roomNameAttr, buildingId, date });
-                    return;
-                }
-
-                let roomName;
-                try {
-                    roomName = decodeURIComponent(roomNameAttr);
-                } catch (error) {
-                    console.error('Failed to decode room name', error);
-                    roomName = roomNameAttr;
-                }
-
-                console.log(`Clicked room: ${roomName}, Building: ${buildingId}, Date: ${date}`);
+                const roomName = decodeURIComponent(roomNameAttr);
                 this.showWeeklySchedule(roomName, buildingId, date);
             });
         });
     }
     
     showWeeklySchedule(roomName, buildingId, selectedDate) {
-        console.log(`Showing weekly schedule for: ${roomName}, ${buildingId}, week of ${selectedDate}`);
-
         const { startDate, endDate } = this.getWeekRange(selectedDate);
-        const startKey = this.formatDateKey(startDate);
-        const endKey = this.formatDateKey(endDate);
+        const [startKey, endKey] = [startDate, endDate].map(this.formatDateKey);
 
         const weeklySchedules = this.data.filter(record =>
             record.room_name === roomName &&
@@ -281,68 +246,67 @@ class RoomFinder {
         });
 
         schedulesByDate.forEach(list => {
-            list.sort((a, b) => {
-                const timeA = this.timeToMinutes(a.time.split(' - ')[0]);
-                const timeB = this.timeToMinutes(b.time.split(' - ')[0]);
-                return timeA - timeB;
-            });
+            list.sort((a, b) =>
+                this.timeToMinutes(a.time.split(' - ')[0]) -
+                this.timeToMinutes(b.time.split(' - ')[0])
+            );
         });
 
         const weekDates = this.getWeekDates(startDate);
+        const today = new Date();
+        const todayKey = this.formatDateKey(today);
 
-        let scheduleHtml = `
+        const dayColumns = weekDates.map((date, index) => {
+            const dateKey = this.formatDateKey(date);
+            const daySchedules = schedulesByDate.get(dateKey) || [];
+            const isToday = dateKey === todayKey;
+            const scheduleItems = daySchedules.length === 0
+                ? '<div class="day-empty">일정 없음</div>'
+                : daySchedules.map(schedule => `
+                    <div class="schedule-item">
+                        <div class="schedule-time">${schedule.time}</div>
+                        <div class="schedule-title">${schedule.title}</div>
+                    </div>
+                `).join('');
+
+            return `
+                <div class="day-column${isToday ? ' today' : ''}" id="day-${index}">
+                    <div class="day-header${isToday ? ' today-header' : ''}">
+                        <span class="day-name">${this.getKoreanWeekday(date.getDay())}요일${isToday ? ' (오늘)' : ''}</span>
+                        <span class="day-date">${this.formatKoreanDate(date)}</span>
+                    </div>
+                    <div class="day-body">${scheduleItems}</div>
+                </div>
+            `;
+        }).join('');
+
+        const modalHTML = `
             <div class="modal-overlay" onclick="this.remove()">
                 <div class="modal-content" onclick="event.stopPropagation()">
                     <div class="modal-header">
-                        <h3>${roomName} - ${this.formatDateKey(startDate)} ~ ${this.formatDateKey(endDate)} 주간 일정</h3>
+                        <h3>${roomName} - ${startKey} ~ ${endKey} 주간 일정</h3>
                         <button class="close-btn" onclick="this.closest('.modal-overlay').remove()">&times;</button>
                     </div>
                     <div class="modal-body">
-                        <div class="weekly-schedule">
-        `;
-
-        weekDates.forEach(date => {
-            const dateKey = this.formatDateKey(date);
-            const daySchedules = schedulesByDate.get(dateKey) || [];
-            scheduleHtml += `
-                <div class="day-column">
-                    <div class="day-header">
-                        <span class="day-name">${this.getKoreanWeekday(date.getDay())}요일</span>
-                        <span class="day-date">${this.formatKoreanDate(date)}</span>
-                    </div>
-                    <div class="day-body">
-            `;
-
-            if (daySchedules.length === 0) {
-                scheduleHtml += `
-                        <div class="day-empty">일정 없음</div>
-                `;
-            } else {
-                daySchedules.forEach(schedule => {
-                    scheduleHtml += `
-                        <div class="schedule-item">
-                            <div class="schedule-time">${schedule.time}</div>
-                            <div class="schedule-title">${schedule.title}</div>
-                        </div>
-                    `;
-                });
-            }
-
-            scheduleHtml += `
-                    </div>
-                </div>
-            `;
-        });
-
-        scheduleHtml += `
-                        </div>
+                        <div class="weekly-schedule">${dayColumns}</div>
                     </div>
                 </div>
             </div>
         `;
 
-        document.body.insertAdjacentHTML('beforeend', scheduleHtml);
-        console.log('Weekly modal added to page');
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+        // Auto-scroll to today's column after modal is added
+        setTimeout(() => {
+            const todayColumn = document.querySelector('.day-column.today');
+            if (todayColumn) {
+                todayColumn.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'nearest',
+                    inline: 'center'
+                });
+            }
+        }, 100);
     }
 
     getWeekRange(dateString) {

@@ -35,12 +35,12 @@ class RoomFinder {
     async loadData() {
         try {
             // Load building rooms data
-            const buildingResponse = await fetch('../data/building.json');
+            const buildingResponse = await fetch('./data/building.json');
             this.buildingRooms = await buildingResponse.json();
             console.log(`Loaded building data for ${Object.keys(this.buildingRooms).length} buildings`);
 
             // Load schedule data
-            const scheduleResponse = await fetch('../data/schedule.jsonl');
+            const scheduleResponse = await fetch('./data/schedule.jsonl');
             const text = await scheduleResponse.text();
 
             this.data = text.trim().split('\n')

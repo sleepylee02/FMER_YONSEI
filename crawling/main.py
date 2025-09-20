@@ -281,8 +281,8 @@ def main():
     base_week_start, _ = week_range_kst(anchor)
     print(f"📅 크롤링 기간: {base_week_start.date()} 부터 {WEEKS}주간")
 
-    os.makedirs("data", exist_ok=True)
-    out_path = "data/schedule.jsonl"
+    os.makedirs("../frontend/data", exist_ok=True)
+    out_path = "../frontend/data/schedule.jsonl"
     seen = set()
     count = 0
     building_count = 0

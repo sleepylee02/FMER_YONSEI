@@ -178,7 +178,7 @@ class RoomFinder {
             const statusClass = room.available ? 'available' : 'occupied';
             const statusText = room.available ? '사용 가능' : '사용 중';
 
-            const roomNameEncoded = room.room_name.replace(/"/g, '&quot;');
+            const roomNameEncoded = encodeURIComponent(room.room_name);
             html += `
                 <div class="room-item clickable" data-room-name="${roomNameEncoded}" data-building-id="${room.building_id}" data-date="${searchParams.date}">
                     <div class="room-header">
@@ -187,7 +187,7 @@ class RoomFinder {
                     </div>
                     ${this.getRoomDetails(room)}
                     <div class="click-hint">
-                        <small style="color: #888;">📅 클릭하면 하루 전체 일정을 확인할 수 있습니다</small>
+                        <small style="color: #888;">📅 클릭하면 주간 일정을 확인할 수 있습니다</small>
                     </div>
                 </div>
             `;
@@ -237,75 +237,159 @@ class RoomFinder {
                     item.style.backgroundColor = '';
                 }, 200);
 
-                const roomName = item.dataset.roomName.replace(/&quot;/g, '"');
+                const roomNameAttr = item.dataset.roomName;
                 const buildingId = item.dataset.buildingId;
                 const date = item.dataset.date;
+
+                if (!roomNameAttr || !buildingId || !date) {
+                    console.warn('Missing data attributes for room item', { roomNameAttr, buildingId, date });
+                    return;
+                }
+
+                let roomName;
+                try {
+                    roomName = decodeURIComponent(roomNameAttr);
+                } catch (error) {
+                    console.error('Failed to decode room name', error);
+                    roomName = roomNameAttr;
+                }
+
                 console.log(`Clicked room: ${roomName}, Building: ${buildingId}, Date: ${date}`);
-                this.showDailySchedule(roomName, buildingId, date);
+                this.showWeeklySchedule(roomName, buildingId, date);
             });
         });
     }
+    
+    showWeeklySchedule(roomName, buildingId, selectedDate) {
+        console.log(`Showing weekly schedule for: ${roomName}, ${buildingId}, week of ${selectedDate}`);
 
-    showDailySchedule(roomName, buildingId, date) {
-        console.log(`Showing daily schedule for: ${roomName}, ${buildingId}, ${date}`);
-        console.log(`Total data records: ${this.data.length}`);
+        const { startDate, endDate } = this.getWeekRange(selectedDate);
+        const startKey = this.formatDateKey(startDate);
+        const endKey = this.formatDateKey(endDate);
 
-        // Get all schedules for this room on this date
-        const roomSchedules = this.data.filter(record =>
+        const weeklySchedules = this.data.filter(record =>
             record.room_name === roomName &&
             record.building_id === buildingId &&
-            record.date === date
+            record.date >= startKey &&
+            record.date <= endKey
         );
 
-        console.log(`Found ${roomSchedules.length} schedules for this room on this date`);
-
-        // Sort by time
-        roomSchedules.sort((a, b) => {
-            const timeA = this.timeToMinutes(a.time.split(' - ')[0]);
-            const timeB = this.timeToMinutes(b.time.split(' - ')[0]);
-            return timeA - timeB;
+        const schedulesByDate = new Map();
+        weeklySchedules.forEach(schedule => {
+            if (!schedulesByDate.has(schedule.date)) {
+                schedulesByDate.set(schedule.date, []);
+            }
+            schedulesByDate.get(schedule.date).push(schedule);
         });
 
-        // Create modal content
+        schedulesByDate.forEach(list => {
+            list.sort((a, b) => {
+                const timeA = this.timeToMinutes(a.time.split(' - ')[0]);
+                const timeB = this.timeToMinutes(b.time.split(' - ')[0]);
+                return timeA - timeB;
+            });
+        });
+
+        const weekDates = this.getWeekDates(startDate);
+
         let scheduleHtml = `
             <div class="modal-overlay" onclick="this.remove()">
                 <div class="modal-content" onclick="event.stopPropagation()">
                     <div class="modal-header">
-                        <h3>${roomName} - ${date} 전체 일정</h3>
+                        <h3>${roomName} - ${this.formatDateKey(startDate)} ~ ${this.formatDateKey(endDate)} 주간 일정</h3>
                         <button class="close-btn" onclick="this.closest('.modal-overlay').remove()">&times;</button>
                     </div>
                     <div class="modal-body">
+                        <div class="weekly-schedule">
         `;
 
-        if (roomSchedules.length === 0) {
+        weekDates.forEach(date => {
+            const dateKey = this.formatDateKey(date);
+            const daySchedules = schedulesByDate.get(dateKey) || [];
             scheduleHtml += `
-                <div class="no-schedule">
-                    <p>이 날짜에는 예정된 수업이 없습니다.</p>
-                    <p class="available-all-day">하루 종일 사용 가능합니다.</p>
+                <div class="day-column">
+                    <div class="day-header">
+                        <span class="day-name">${this.getKoreanWeekday(date.getDay())}요일</span>
+                        <span class="day-date">${this.formatKoreanDate(date)}</span>
+                    </div>
+                    <div class="day-body">
+            `;
+
+            if (daySchedules.length === 0) {
+                scheduleHtml += `
+                        <div class="day-empty">일정 없음</div>
+                `;
+            } else {
+                daySchedules.forEach(schedule => {
+                    scheduleHtml += `
+                        <div class="schedule-item">
+                            <div class="schedule-time">${schedule.time}</div>
+                            <div class="schedule-title">${schedule.title}</div>
+                        </div>
+                    `;
+                });
+            }
+
+            scheduleHtml += `
+                    </div>
                 </div>
             `;
-        } else {
-            scheduleHtml += '<div class="schedule-list">';
-            roomSchedules.forEach(schedule => {
-                scheduleHtml += `
-                    <div class="schedule-item">
-                        <div class="schedule-time">${schedule.time}</div>
-                        <div class="schedule-title">${schedule.title}</div>
-                    </div>
-                `;
-            });
-            scheduleHtml += '</div>';
-        }
+        });
 
         scheduleHtml += `
+                        </div>
                     </div>
                 </div>
             </div>
         `;
 
-        // Add modal to page
         document.body.insertAdjacentHTML('beforeend', scheduleHtml);
-        console.log('Modal added to page');
+        console.log('Weekly modal added to page');
+    }
+
+    getWeekRange(dateString) {
+        const baseDate = this.parseDate(dateString);
+        const day = baseDate.getDay();
+        const diffToMonday = (day + 6) % 7;
+
+        const startDate = new Date(baseDate);
+        startDate.setDate(baseDate.getDate() - diffToMonday);
+
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 6);
+
+        return { startDate, endDate };
+    }
+
+    getWeekDates(startDate) {
+        return Array.from({ length: 7 }, (_, index) => {
+            const date = new Date(startDate);
+            date.setDate(startDate.getDate() + index);
+            return date;
+        });
+    }
+
+    parseDate(dateString) {
+        const [year, month, day] = dateString.split('-').map(Number);
+        return new Date(year, month - 1, day);
+    }
+
+    formatDateKey(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    formatKoreanDate(date) {
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        return `${month}월 ${day}일`;
+    }
+
+    getKoreanWeekday(dayIndex) {
+        const names = ['일', '월', '화', '수', '목', '금', '토'];
+        return names[dayIndex] || '';
     }
 
     showError(message) {

@@ -2,6 +2,9 @@ class RoomFinder {
     constructor() {
         this.data = [];
         this.buildingRooms = {};
+        this.roomList = document.getElementById('roomList');
+        this.roomFlashTimers = new WeakMap();
+        this.handleRoomCardClick = this.handleRoomCardClick.bind(this);
         this.init();
     }
 
@@ -26,10 +29,18 @@ class RoomFinder {
 
     bindEvents() {
         const form = document.getElementById('roomFinderForm');
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.searchRooms();
-        });
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.searchRooms();
+            });
+        }
+
+        if (this.roomList) {
+            this.roomList.addEventListener('click', this.handleRoomCardClick);
+        } else {
+            console.warn('Room list element is missing from the DOM.');
+        }
     }
 
     async loadData() {
@@ -150,162 +161,325 @@ class RoomFinder {
     }
 
     displayResults(rooms, searchParams) {
-        const resultsContainer = document.getElementById('roomList');
-        const buildingSelect = document.getElementById('uBuilding');
-        const buildingName = buildingSelect.options[buildingSelect.selectedIndex].text;
-
-        if (rooms.length === 0) {
-            resultsContainer.innerHTML = `
-                <div class="building-info">
-                    <strong>${buildingName}</strong> - ${searchParams.date} ${searchParams.startTime} ~ ${searchParams.endTime}
-                </div>
-                <p class="no-results">해당 조건에 맞는 강의실을 찾을 수 없습니다.</p>
-            `;
+        if (!this.roomList) {
+            console.error('Room list container is not available.');
             return;
         }
 
-        const availableCount = rooms.filter(room => room.available).length;
-        const totalCount = rooms.length;
+        const buildingSelect = document.getElementById('uBuilding');
+        const selectedOption = buildingSelect ? buildingSelect.options[buildingSelect.selectedIndex] : null;
+        const buildingName = selectedOption ? selectedOption.text : '';
 
-        let html = `
-            <div class="building-info">
-                <strong>${buildingName}</strong> - ${searchParams.date} ${searchParams.startTime} ~ ${searchParams.endTime}<br>
-                전체 강의실 ${totalCount}개 중 사용 가능한 강의실 ${availableCount}개
-            </div>
-        `;
+        const safeRooms = Array.isArray(rooms) ? rooms : [];
 
-        rooms.forEach(room => {
-            const statusClass = room.available ? 'available' : 'occupied';
-            const statusText = room.available ? '사용 가능' : '사용 중';
+        this.roomList.innerHTML = '';
 
-            const roomNameEncoded = room.room_name.replace(/"/g, '&quot;');
-            html += `
-                <div class="room-item clickable" data-room-name="${roomNameEncoded}" data-building-id="${room.building_id}" data-date="${searchParams.date}">
-                    <div class="room-header">
-                        <h3 class="room-name">${room.room_name}</h3>
-                        <span class="availability-status ${statusClass}">${statusText}</span>
-                    </div>
-                    ${this.getRoomDetails(room)}
-                    <div class="click-hint">
-                        <small style="color: #888;">📅 클릭하면 하루 전체 일정을 확인할 수 있습니다</small>
-                    </div>
-                </div>
-            `;
+        const totalCount = safeRooms.length;
+        const availableCount = safeRooms.reduce((count, room) => room.available ? count + 1 : count, 0);
+        const summary = this.createBuildingSummary(
+            buildingName,
+            searchParams,
+            totalCount > 0 ? availableCount : undefined,
+            totalCount > 0 ? totalCount : undefined
+        );
+
+        this.roomList.appendChild(summary);
+
+        if (totalCount === 0) {
+            const message = document.createElement('p');
+            message.className = 'no-results';
+            message.textContent = '해당 조건에 맞는 강의실을 찾을 수 없습니다.';
+            this.roomList.appendChild(message);
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        safeRooms.forEach(room => {
+            fragment.appendChild(this.createRoomCard(room, searchParams));
         });
 
-        resultsContainer.innerHTML = html;
-
-        // Add click handlers to room items
-        this.addRoomClickHandlers();
+        this.roomList.appendChild(fragment);
     }
 
-    getRoomDetails(room) {
-        if (room.available) {
-            return `<div class="room-details">이 시간대에 사용 가능합니다.</div>`;
-        } else {
-            const conflicts = room.conflicts.map(conflict =>
-                `${conflict.time}: ${conflict.title}`
-            ).join('<br>');
+    createRoomCard(room, searchParams) {
+        const card = document.createElement('article');
+        card.className = 'room-item clickable';
+        card.dataset.roomName = room.room_name;
+        card.dataset.buildingId = room.building_id;
+        card.dataset.date = searchParams.date;
 
-            return `
-                <div class="room-details">
-                    <strong>사용 중인 수업:</strong><br>
-                    ${conflicts}
-                </div>
-            `;
+        const header = document.createElement('div');
+        header.className = 'room-header';
+
+        const nameElement = document.createElement('h3');
+        nameElement.className = 'room-name';
+        nameElement.textContent = room.room_name;
+
+        const status = document.createElement('span');
+        status.className = `availability-status ${room.available ? 'available' : 'occupied'}`;
+        status.textContent = room.available ? '사용 가능' : '사용 중';
+
+        header.appendChild(nameElement);
+        header.appendChild(status);
+
+        card.appendChild(header);
+        card.appendChild(this.createRoomDetails(room));
+        card.appendChild(this.createClickHint());
+
+        return card;
+    }
+
+    createRoomDetails(room) {
+        const details = document.createElement('div');
+        details.className = 'room-details';
+
+        if (room.available) {
+            details.textContent = '이 시간대에 사용 가능합니다.';
+            return details;
         }
+
+        const label = document.createElement('strong');
+        label.textContent = '사용 중인 수업:';
+        details.appendChild(label);
+
+        const conflicts = Array.isArray(room.conflicts) ? room.conflicts : [];
+
+        const list = document.createElement('ul');
+        list.className = 'room-conflict-list';
+
+        conflicts.forEach(conflict => {
+            const item = document.createElement('li');
+            item.textContent = `${conflict.time}: ${conflict.title}`;
+            list.appendChild(item);
+        });
+
+        details.appendChild(list);
+
+        return details;
+    }
+
+    createClickHint() {
+        const hintWrapper = document.createElement('div');
+        hintWrapper.className = 'click-hint';
+
+        const hintText = document.createElement('small');
+        hintText.textContent = '📅 클릭하면 주간 일정을 확인할 수 있습니다';
+
+        hintWrapper.appendChild(hintText);
+
+        return hintWrapper;
+    }
+
+    createBuildingSummary(buildingName, searchParams, availableCount, totalCount) {
+        const summary = document.createElement('div');
+        summary.className = 'building-info';
+
+        const heading = document.createElement('div');
+        const buildingLabel = document.createElement('strong');
+        buildingLabel.textContent = buildingName;
+        heading.appendChild(buildingLabel);
+        heading.appendChild(document.createTextNode(` - ${searchParams.date} ${searchParams.startTime} ~ ${searchParams.endTime}`));
+        summary.appendChild(heading);
+
+        if (typeof availableCount === 'number' && typeof totalCount === 'number') {
+            const stats = document.createElement('div');
+            stats.textContent = `전체 강의실 ${totalCount}개 중 사용 가능한 강의실 ${availableCount}개`;
+            summary.appendChild(stats);
+        }
+
+        return summary;
     }
 
     showLoading() {
-        document.getElementById('loading').style.display = 'block';
-        document.getElementById('results').style.display = 'none';
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        if (loading) {
+            loading.style.display = 'block';
+        }
+        if (results) {
+            results.style.display = 'none';
+        }
     }
 
     hideLoading() {
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('results').style.display = 'block';
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        if (loading) {
+            loading.style.display = 'none';
+        }
+        if (results) {
+            results.style.display = 'block';
+        }
     }
 
-    addRoomClickHandlers() {
-        const roomItems = document.querySelectorAll('.room-item.clickable');
-        console.log(`Adding click handlers to ${roomItems.length} room items`);
-        roomItems.forEach(item => {
-            item.addEventListener('click', () => {
-                // Visual feedback
-                item.style.backgroundColor = '#e0f2fe';
-                setTimeout(() => {
-                    item.style.backgroundColor = '';
-                }, 200);
+    handleRoomCardClick(event) {
+        if (!this.roomList) {
+            return;
+        }
 
-                const roomName = item.dataset.roomName.replace(/&quot;/g, '"');
-                const buildingId = item.dataset.buildingId;
-                const date = item.dataset.date;
-                console.log(`Clicked room: ${roomName}, Building: ${buildingId}, Date: ${date}`);
-                this.showDailySchedule(roomName, buildingId, date);
-            });
-        });
+        const card = event.target.closest('.room-item.clickable');
+        if (!card || !this.roomList.contains(card)) {
+            return;
+        }
+
+        this.flashRoomCard(card);
+
+        const { roomName, buildingId, date } = card.dataset;
+
+        if (!roomName || !buildingId || !date) {
+            console.warn('Missing data attributes for room item', { roomName, buildingId, date });
+            return;
+        }
+
+        console.log(`Clicked room: ${roomName}, Building: ${buildingId}, Date: ${date}`);
+        this.showWeeklySchedule(roomName, buildingId, date);
     }
 
-    showDailySchedule(roomName, buildingId, date) {
-        console.log(`Showing daily schedule for: ${roomName}, ${buildingId}, ${date}`);
-        console.log(`Total data records: ${this.data.length}`);
+    flashRoomCard(card) {
+        if (this.roomFlashTimers.has(card)) {
+            clearTimeout(this.roomFlashTimers.get(card));
+        }
 
-        // Get all schedules for this room on this date
-        const roomSchedules = this.data.filter(record =>
+        card.classList.add('is-activating');
+
+        const timeoutId = setTimeout(() => {
+            card.classList.remove('is-activating');
+            this.roomFlashTimers.delete(card);
+        }, 200);
+
+        this.roomFlashTimers.set(card, timeoutId);
+    }
+    
+    showWeeklySchedule(roomName, buildingId, selectedDate) {
+        console.log(`Showing weekly schedule for: ${roomName}, ${buildingId}, week of ${selectedDate}`);
+
+        const { startDate, endDate } = this.getWeekRange(selectedDate);
+        const startKey = this.formatDateKey(startDate);
+        const endKey = this.formatDateKey(endDate);
+
+        const weeklySchedules = this.data.filter(record =>
             record.room_name === roomName &&
             record.building_id === buildingId &&
-            record.date === date
+            record.date >= startKey &&
+            record.date <= endKey
         );
 
-        console.log(`Found ${roomSchedules.length} schedules for this room on this date`);
-
-        // Sort by time
-        roomSchedules.sort((a, b) => {
-            const timeA = this.timeToMinutes(a.time.split(' - ')[0]);
-            const timeB = this.timeToMinutes(b.time.split(' - ')[0]);
-            return timeA - timeB;
+        const schedulesByDate = new Map();
+        weeklySchedules.forEach(schedule => {
+            if (!schedulesByDate.has(schedule.date)) {
+                schedulesByDate.set(schedule.date, []);
+            }
+            schedulesByDate.get(schedule.date).push(schedule);
         });
 
-        // Create modal content
+        schedulesByDate.forEach(list => {
+            list.sort((a, b) => {
+                const timeA = this.timeToMinutes(a.time.split(' - ')[0]);
+                const timeB = this.timeToMinutes(b.time.split(' - ')[0]);
+                return timeA - timeB;
+            });
+        });
+
+        const weekDates = this.getWeekDates(startDate);
+
         let scheduleHtml = `
             <div class="modal-overlay" onclick="this.remove()">
                 <div class="modal-content" onclick="event.stopPropagation()">
                     <div class="modal-header">
-                        <h3>${roomName} - ${date} 전체 일정</h3>
+                        <h3>${roomName} - ${this.formatDateKey(startDate)} ~ ${this.formatDateKey(endDate)} 주간 일정</h3>
                         <button class="close-btn" onclick="this.closest('.modal-overlay').remove()">&times;</button>
                     </div>
                     <div class="modal-body">
+                        <div class="weekly-schedule">
         `;
 
-        if (roomSchedules.length === 0) {
+        weekDates.forEach(date => {
+            const dateKey = this.formatDateKey(date);
+            const daySchedules = schedulesByDate.get(dateKey) || [];
             scheduleHtml += `
-                <div class="no-schedule">
-                    <p>이 날짜에는 예정된 수업이 없습니다.</p>
-                    <p class="available-all-day">하루 종일 사용 가능합니다.</p>
+                <div class="day-column">
+                    <div class="day-header">
+                        <span class="day-name">${this.getKoreanWeekday(date.getDay())}요일</span>
+                        <span class="day-date">${this.formatKoreanDate(date)}</span>
+                    </div>
+                    <div class="day-body">
+            `;
+
+            if (daySchedules.length === 0) {
+                scheduleHtml += `
+                        <div class="day-empty">일정 없음</div>
+                `;
+            } else {
+                daySchedules.forEach(schedule => {
+                    scheduleHtml += `
+                        <div class="schedule-item">
+                            <div class="schedule-time">${schedule.time}</div>
+                            <div class="schedule-title">${schedule.title}</div>
+                        </div>
+                    `;
+                });
+            }
+
+            scheduleHtml += `
+                    </div>
                 </div>
             `;
-        } else {
-            scheduleHtml += '<div class="schedule-list">';
-            roomSchedules.forEach(schedule => {
-                scheduleHtml += `
-                    <div class="schedule-item">
-                        <div class="schedule-time">${schedule.time}</div>
-                        <div class="schedule-title">${schedule.title}</div>
-                    </div>
-                `;
-            });
-            scheduleHtml += '</div>';
-        }
+        });
 
         scheduleHtml += `
+                        </div>
                     </div>
                 </div>
             </div>
         `;
 
-        // Add modal to page
         document.body.insertAdjacentHTML('beforeend', scheduleHtml);
-        console.log('Modal added to page');
+        console.log('Weekly modal added to page');
+    }
+
+    getWeekRange(dateString) {
+        const baseDate = this.parseDate(dateString);
+        const day = baseDate.getDay();
+        const diffToMonday = (day + 6) % 7;
+
+        const startDate = new Date(baseDate);
+        startDate.setDate(baseDate.getDate() - diffToMonday);
+
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 6);
+
+        return { startDate, endDate };
+    }
+
+    getWeekDates(startDate) {
+        return Array.from({ length: 7 }, (_, index) => {
+            const date = new Date(startDate);
+            date.setDate(startDate.getDate() + index);
+            return date;
+        });
+    }
+
+    parseDate(dateString) {
+        const [year, month, day] = dateString.split('-').map(Number);
+        return new Date(year, month - 1, day);
+    }
+
+    formatDateKey(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    formatKoreanDate(date) {
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        return `${month}월 ${day}일`;
+    }
+
+    getKoreanWeekday(dayIndex) {
+        const names = ['일', '월', '화', '수', '목', '금', '토'];
+        return names[dayIndex] || '';
     }
 
     showError(message) {

@@ -295,7 +295,7 @@ header p {
     transition: all 0.3s ease;
 }
 
-.day-column.today {
+.day-column.selected-date {
     border: 2px solid #1e3a8a;
     box-shadow: 0 4px 12px rgba(30, 58, 138, 0.15);
     transform: scale(1.02);
@@ -307,13 +307,13 @@ header p {
     padding: 14px 16px;
 }
 
-.day-header.today-header {
+.day-header.selected-date-header {
     background: #1e3a8a;
     color: white;
 }
 
-.day-header.today-header .day-name,
-.day-header.today-header .day-date {
+.day-header.selected-date-header .day-name,
+.day-header.selected-date-header .day-date {
     color: white;
 }
 
@@ -414,7 +414,7 @@ header p {
         overflow-x: visible;
     }
 
-    .day-column.today {
+    .day-column.selected-date {
         transform: none;
     }
 

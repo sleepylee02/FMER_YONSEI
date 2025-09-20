@@ -253,13 +253,12 @@ class RoomFinder {
         });
 
         const weekDates = this.getWeekDates(startDate);
-        const today = new Date();
-        const todayKey = this.formatDateKey(today);
+        const searchedDateKey = selectedDate;
 
         const dayColumns = weekDates.map((date, index) => {
             const dateKey = this.formatDateKey(date);
             const daySchedules = schedulesByDate.get(dateKey) || [];
-            const isToday = dateKey === todayKey;
+            const isSearchedDate = dateKey === searchedDateKey;
             const scheduleItems = daySchedules.length === 0
                 ? '<div class="day-empty">일정 없음</div>'
                 : daySchedules.map(schedule => `
@@ -270,9 +269,9 @@ class RoomFinder {
                 `).join('');
 
             return `
-                <div class="day-column${isToday ? ' today' : ''}" id="day-${index}">
-                    <div class="day-header${isToday ? ' today-header' : ''}">
-                        <span class="day-name">${this.getKoreanWeekday(date.getDay())}요일${isToday ? ' (오늘)' : ''}</span>
+                <div class="day-column${isSearchedDate ? ' selected-date' : ''}" id="day-${index}">
+                    <div class="day-header${isSearchedDate ? ' selected-date-header' : ''}">
+                        <span class="day-name">${this.getKoreanWeekday(date.getDay())}요일${isSearchedDate ? ' (검색일)' : ''}</span>
                         <span class="day-date">${this.formatKoreanDate(date)}</span>
                     </div>
                     <div class="day-body">${scheduleItems}</div>
@@ -296,11 +295,11 @@ class RoomFinder {
 
         document.body.insertAdjacentHTML('beforeend', modalHTML);
 
-        // Auto-scroll to today's column after modal is added
+        // Auto-scroll to searched date's column after modal is added
         setTimeout(() => {
-            const todayColumn = document.querySelector('.day-column.today');
-            if (todayColumn) {
-                todayColumn.scrollIntoView({
+            const selectedColumn = document.querySelector('.day-column.selected-date');
+            if (selectedColumn) {
+                selectedColumn.scrollIntoView({
                     behavior: 'smooth',
                     block: 'nearest',
                     inline: 'center'

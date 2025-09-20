@@ -178,18 +178,25 @@ class RoomFinder {
             const statusClass = room.available ? 'available' : 'occupied';
             const statusText = room.available ? '사용 가능' : '사용 중';
 
+            const roomNameEncoded = room.room_name.replace(/"/g, '&quot;');
             html += `
-                <div class="room-item">
+                <div class="room-item clickable" data-room-name="${roomNameEncoded}" data-building-id="${room.building_id}" data-date="${searchParams.date}">
                     <div class="room-header">
                         <h3 class="room-name">${room.room_name}</h3>
                         <span class="availability-status ${statusClass}">${statusText}</span>
                     </div>
                     ${this.getRoomDetails(room)}
+                    <div class="click-hint">
+                        <small style="color: #888;">📅 클릭하면 하루 전체 일정을 확인할 수 있습니다</small>
+                    </div>
                 </div>
             `;
         });
 
         resultsContainer.innerHTML = html;
+
+        // Add click handlers to room items
+        this.addRoomClickHandlers();
     }
 
     getRoomDetails(room) {
@@ -217,6 +224,88 @@ class RoomFinder {
     hideLoading() {
         document.getElementById('loading').style.display = 'none';
         document.getElementById('results').style.display = 'block';
+    }
+
+    addRoomClickHandlers() {
+        const roomItems = document.querySelectorAll('.room-item.clickable');
+        console.log(`Adding click handlers to ${roomItems.length} room items`);
+        roomItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // Visual feedback
+                item.style.backgroundColor = '#e0f2fe';
+                setTimeout(() => {
+                    item.style.backgroundColor = '';
+                }, 200);
+
+                const roomName = item.dataset.roomName.replace(/&quot;/g, '"');
+                const buildingId = item.dataset.buildingId;
+                const date = item.dataset.date;
+                console.log(`Clicked room: ${roomName}, Building: ${buildingId}, Date: ${date}`);
+                this.showDailySchedule(roomName, buildingId, date);
+            });
+        });
+    }
+
+    showDailySchedule(roomName, buildingId, date) {
+        console.log(`Showing daily schedule for: ${roomName}, ${buildingId}, ${date}`);
+        console.log(`Total data records: ${this.data.length}`);
+
+        // Get all schedules for this room on this date
+        const roomSchedules = this.data.filter(record =>
+            record.room_name === roomName &&
+            record.building_id === buildingId &&
+            record.date === date
+        );
+
+        console.log(`Found ${roomSchedules.length} schedules for this room on this date`);
+
+        // Sort by time
+        roomSchedules.sort((a, b) => {
+            const timeA = this.timeToMinutes(a.time.split(' - ')[0]);
+            const timeB = this.timeToMinutes(b.time.split(' - ')[0]);
+            return timeA - timeB;
+        });
+
+        // Create modal content
+        let scheduleHtml = `
+            <div class="modal-overlay" onclick="this.remove()">
+                <div class="modal-content" onclick="event.stopPropagation()">
+                    <div class="modal-header">
+                        <h3>${roomName} - ${date} 전체 일정</h3>
+                        <button class="close-btn" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+        `;
+
+        if (roomSchedules.length === 0) {
+            scheduleHtml += `
+                <div class="no-schedule">
+                    <p>이 날짜에는 예정된 수업이 없습니다.</p>
+                    <p class="available-all-day">하루 종일 사용 가능합니다.</p>
+                </div>
+            `;
+        } else {
+            scheduleHtml += '<div class="schedule-list">';
+            roomSchedules.forEach(schedule => {
+                scheduleHtml += `
+                    <div class="schedule-item">
+                        <div class="schedule-time">${schedule.time}</div>
+                        <div class="schedule-title">${schedule.title}</div>
+                    </div>
+                `;
+            });
+            scheduleHtml += '</div>';
+        }
+
+        scheduleHtml += `
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Add modal to page
+        document.body.insertAdjacentHTML('beforeend', scheduleHtml);
+        console.log('Modal added to page');
     }
 
     showError(message) {

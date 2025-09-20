@@ -46,7 +46,7 @@ header p {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 20px;
-    align-items: end;
+    align-items: start;
 }
 
 .form-group {
@@ -75,6 +75,12 @@ header p {
     border-color: #1e3a8a;
 }
 
+.building-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
 .search-btn {
     background-color: #1e3a8a;
     color: white;
@@ -86,6 +92,7 @@ header p {
     cursor: pointer;
     transition: background-color 0.3s;
     height: fit-content;
+    margin-top: 10px;
 }
 
 .search-btn:hover {
@@ -128,6 +135,26 @@ header p {
 .room-item:hover {
     border-color: #1e3a8a;
     box-shadow: 0 4px 12px rgba(30, 58, 138, 0.1);
+}
+
+.room-item.clickable {
+    cursor: pointer;
+}
+
+.room-item.clickable * {
+    pointer-events: none;
+}
+
+.room-item.clickable:hover {
+    border-color: #1e3a8a;
+    box-shadow: 0 4px 12px rgba(30, 58, 138, 0.2);
+    transform: translateY(-2px);
+}
+
+.click-hint {
+    margin-top: 8px;
+    text-align: center;
+    opacity: 0.7;
 }
 
 .room-header {
@@ -191,6 +218,116 @@ header p {
     border: 1px solid #f87171;
 }
 
+/* Modal styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 10px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    padding: 20px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: #1e3a8a;
+    font-size: 1.4em;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-btn:hover {
+    color: #333;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.schedule-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.schedule-item {
+    padding: 15px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.schedule-time {
+    font-weight: 600;
+    color: #1e3a8a;
+    font-size: 1.1em;
+    margin-bottom: 5px;
+}
+
+.schedule-title {
+    font-size: 1em;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.schedule-instructor {
+    font-size: 0.9em;
+    color: #666;
+}
+
+.no-schedule {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.no-schedule p {
+    margin-bottom: 10px;
+    color: #666;
+}
+
+.available-all-day {
+    color: #166534;
+    font-weight: 600;
+    background: #dcfce7;
+    padding: 10px;
+    border-radius: 5px;
+    display: inline-block;
+}
+
 @media (max-width: 768px) {
     .container {
         padding: 10px;
@@ -207,5 +344,18 @@ header p {
 
     .results {
         padding: 20px;
+    }
+
+    .modal-content {
+        width: 95%;
+        max-height: 90vh;
+    }
+
+    .modal-header {
+        padding: 15px;
+    }
+
+    .modal-body {
+        padding: 15px;
     }
 }
